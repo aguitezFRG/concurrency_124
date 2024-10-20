@@ -28,30 +28,51 @@
 % 	end,
 % 	ping(N-1,Pong_Node).
 
-% init_chat() ->
-% 	User1 = io:get_line("Enter your name: "),
-% 	register(chat, spawn(concurrency, chat, [])).
+init_chat() ->
+	User1 = io:get_line("Enter your name: "),
+	register(chat, spawn(concurrency, chat, [User1])).
 
-% chat() ->
-% 	receive 
-% 		{chat2, Chat2_id, Name, "bye\n"} ->
-% 			io:format("~s: ~s", [Name, "bye\n"]),
-% 			exit(normal);
-% 		{chat2, Chat2_id, Name, Incoming} ->
-% 			io:format("~s: ~s", [Name, Incoming])
-% 			chat()
-% 	end,
-% 	Message = io:get_line("You: ").
+init_chat2(Chat_node) ->
+	User2 = io:get_line("Enter your name: "),
+	spawn(concurrency, chat2, [Chat_node, User2]).
 
-% init_chat2(Chat_node) ->
-% 	User2 = io:get_line("Enter your name: "),
-% 	spawn(concurrency, chat2, [Chat_node]).
+% theoretical flow
+% might split into at least two more methods
+% one for receiving messages
+% the other for sending
+chat(User1) ->
+	Send = io:get_line("You: "),
+	{chat2} ! {chat, self(), User1, Send},
+	receive 
+		{chat2, Chat2_id, Name, Message} ->
+			case Message of
+				"bye\n" ->
+					io:format("~s: ~s~n", [Name, Message]),
+					{chat2, Chat2_id} ! {chat, User1, ""};
+				"" ->
+					io:format("Chat ended~n");
+				_ ->
+					io:format("~s: ~s~n", [Name, Message]),
+					chat(User1)
+			end
+	end.
 
-% chat2(Chat_node) ->
-% 	Message = io:get_line("You: "),
-% 	receive
-
-% 	end.
+chat2(Chat_node, User2) ->
+	Send = io:get_line("You: "),
+	{chat, Chat_node} ! {chat2, self(), User2, Send},
+	receive
+		{chat, Name, Message} ->
+			case Message of
+				"bye\n" ->
+					io:format("~s: ~s~n", [Name, Message]),
+					{chat, Chat_node} ! {chat2, self(), User2, ""};
+				"" ->
+					io:format("Chat ended~n");
+				_ ->
+					io:format("~s: ~s~n", [Name, Message]),
+					chat2(Chat_node, User2)
+			end
+	end.
 	
 
 % chat(Name, Message, Chat_node) ->
